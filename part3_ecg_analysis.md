@@ -18,7 +18,6 @@ In this part, you'll work with the MIT-BIH Arrhythmia Database to build a model 
 %pip install -r requirements.txt
 %pip install wfdb  # For reading MIT-BIH format
 
-# Import necessary libraries
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,9 +33,12 @@ tf.random.set_seed(42)
 np.random.seed(42)
 
 # Configure matplotlib for better visualization
-plt.style.use('seaborn')
+plt.style.use('seaborn-v0_8')
 plt.rcParams['figure.figsize'] = (12, 8)
 plt.rcParams['font.size'] = 12
+
+# Set the working directory
+os.chdir(r'C:\Users\kevxs\OneDrive\Documents\DATASCI 223\6-neural-nets-kxshi')
 
 # Create directories
 os.makedirs('models', exist_ok=True)
@@ -67,7 +69,7 @@ if not os.path.exists(data_dir):
 
 ```python
 # Load ECG data
-record_path = 'data/mitdb/100'  # Example record
+record_path = 'data/mit-bih-arrhythmia-database-1.0.0/100'  # Example record
 record = wfdb.rdrecord(record_path)
 signals = record.p_signal
 
@@ -143,6 +145,18 @@ plt.show()
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 X_train, X_val, y_train, y_val = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+
+from sklearn.utils import class_weight
+
+# Calculate class weights
+class_weights = class_weight.compute_class_weight(
+    class_weight='balanced',
+    classes=np.unique(y_train),
+    y=y_train
+)
+class_weights = dict(enumerate(class_weights))
+
+print(f"Class weights: {class_weights}")
 ```
 
 ## 2. Model Implementation
@@ -172,10 +186,39 @@ def create_simple_nn(input_shape):
     Returns:
         Compiled Keras model
     """
-    model = tf.keras.Sequential([...])
-    
-    model.compile(...)
-    
+    model = tf.keras.Sequential([
+        tf.keras.layers.InputLayer(input_shape=input_shape),
+
+        # Convolution + Pooling
+        tf.keras.layers.Conv1D(32, kernel_size=5, activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(), # batch normalization
+        tf.keras.layers.MaxPooling1D(pool_size=2),
+
+        tf.keras.layers.Conv1D(64, kernel_size=5, activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.MaxPooling1D(pool_size=2),
+
+        tf.keras.layers.Conv1D(128, kernel_size=3, activation='relu', padding='same'),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.GlobalAveragePooling1D(),
+
+        # Dense Layers
+        tf.keras.layers.Dense(128, activation='relu'), # 1 - need 2 dense layers per function def
+        tf.keras.layers.Dropout(0.3),
+        tf.keras.layers.Dense(1, activation='sigmoid')  # 2 
+    ])
+
+    model.compile(
+    optimizer='adam',
+    loss='binary_crossentropy',
+    metrics=[
+        'accuracy',
+        tf.keras.metrics.AUC(name='auc'),
+        tf.keras.metrics.Precision(name='precision'),
+        tf.keras.metrics.Recall(name='recall')
+    ]
+)
+
     return model
 
 # Create and compile model
@@ -210,7 +253,8 @@ history = model.fit(
     validation_data=(X_val, y_val),
     epochs=20,
     batch_size=32,
-    callbacks=callbacks
+    callbacks=callbacks,
+    class_weight=class_weights  # Apply the weights here
 )
 
 # Plot training curves
@@ -238,9 +282,11 @@ plt.show()
 
 ```python
 # Evaluate model
-test_loss, test_accuracy, test_auc = model.evaluate(X_test, y_test)
+test_loss, test_accuracy, test_auc, test_precision, test_recall = model.evaluate(X_test, y_test)
 print(f"Test accuracy: {test_accuracy:.4f}")
 print(f"Test AUC: {test_auc:.4f}")
+print(f"Test Precision: {test_precision:.4f}")
+print(f"Test Recall: {test_recall:.4f}")
 
 # Get predictions
 predictions = model.predict(X_test)
@@ -284,6 +330,8 @@ with open('results/part_3/ecg_classifier_metrics.txt', 'w') as f:
     f.write(f"f1_score: {metrics['f1_score']}\n")
     f.write(f"confusion_matrix: {metrics['confusion_matrix']}\n")
     f.write("----\n")
+
+print(metrics)
 ```
 
 ## Progress Checkpoints

@@ -1,0 +1,5 @@
+Model Evaluation Metrics:
+Final Training Accuracy: 0.9584
+Final Validation Accuracy: 0.9461
+Final Training Loss: 0.1097
+Final Validation Loss: 0.2144

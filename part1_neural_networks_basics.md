@@ -20,16 +20,18 @@ In this part, you'll implement a simple neural network for EMNIST character reco
 # Import necessary libraries
 import tensorflow as tf
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import os
+from sklearn.metrics import precision_score, recall_score, f1_score, confusion_matrix
 
 # Set random seeds for reproducibility
 tf.random.set_seed(42)
 np.random.seed(42)
 
 # Configure matplotlib for better visualization
-plt.style.use('seaborn')
+plt.style.use('seaborn-v0_8')
 plt.rcParams['figure.figsize'] = (12, 8)
 plt.rcParams['font.size'] = 12
 
@@ -43,7 +45,37 @@ os.makedirs('logs', exist_ok=True)
 
 ```python
 # Load EMNIST dataset
-(x_train, y_train), (x_test, y_test) = tf.keras.datasets.emnist.load_data('letters')
+# (x_train, y_train), (x_test, y_test) = tf.keras.datasets.emnist.load_data('letters')
+
+# Set the working directory
+os.chdir(r'C:\Users\kevxs\OneDrive\Documents\DATASCI 223\6-neural-nets-kxshi')
+
+# had to manually download my data... none of the package methods worked
+train_data = pd.read_csv('emnist-letters-train.csv', header=None)
+test_data = pd.read_csv('emnist-letters-test.csv', header=None)
+
+# Print the shapes to verify
+print(f"Training data shape before processing: {train_data.shape}")
+print(f"Test data shape before processing: {test_data.shape}")
+
+# Separate the labels (first column) and pixel values (remaining columns)
+x_train = train_data.iloc[:, 1:].values  
+y_train = train_data.iloc[:, 0].values   
+
+x_test = test_data.iloc[:, 1:].values   
+y_test = test_data.iloc[:, 0].values    
+
+x_train = x_train.reshape(-1, 28, 28)
+x_test = x_test.reshape(-1, 28, 28)
+
+x_train = x_train.astype('float32') / 255.0
+x_test = x_test.astype('float32') / 255.0
+
+# Verify the shapes of the data
+print(f"x_train shape: {x_train.shape}")
+print(f"y_train shape: {y_train.shape}")
+print(f"x_test shape: {x_test.shape}")
+print(f"y_test shape: {y_test.shape}")
 
 # Print dataset information
 print(f"Training data shape: {x_train.shape}")
@@ -62,9 +94,6 @@ plt.show()
 
 ```python
 # Preprocess data
-# Normalize pixel values
-x_train = x_train.astype('float32') / 255.0
-x_test = x_test.astype('float32') / 255.0
 
 # Reshape for dense layers
 x_train = x_train.reshape(-1, 28 * 28)
@@ -110,9 +139,25 @@ def create_simple_nn(input_shape, num_classes):
     Returns:
         Compiled Keras model
     """
-    model = tf.keras.Sequential([...])
+    #model = tf.keras.Sequential([...])
     
-    model.compile(...)
+    #model.compile(...)
+
+    model = tf.keras.Sequential([
+    tf.keras.layers.InputLayer(input_shape = input_shape),
+    tf.keras.layers.Dense(512, activation = 'relu'),
+    tf.keras.layers.Dropout(0.25),
+    tf.keras.layers.Dense(256, activation = 'relu'),
+    tf.keras.layers.Dropout(0.25),
+    tf.keras.layers.Dense(num_classes, activation = 'softmax')
+           
+    ])
+    
+    model.compile(
+        optimizer = 'adam',
+        loss = 'categorical_crossentropy',
+        metrics = ['accuracy']
+    )
     
     return model
 
@@ -186,6 +231,9 @@ true_labels = np.argmax(y_test, axis=1)
 
 # Calculate confusion matrix
 cm = tf.math.confusion_matrix(true_labels, predicted_labels)
+precision = precision_score(true_labels, predicted_labels, average='macro')
+recall = recall_score(true_labels, predicted_labels, average='macro')
+f1 = f1_score(true_labels, predicted_labels, average='macro')
 
 # Plot confusion matrix
 plt.figure(figsize=(10, 8))
@@ -214,6 +262,8 @@ with open('results/part_1/emnist_classifier_metrics.txt', 'w') as f:
     f.write(f"f1_score: {metrics['f1_score']}\n")
     f.write(f"confusion_matrix: {metrics['confusion_matrix']}\n")
     f.write("----\n")
+
+print(metrics)
 ```
 
 ## Progress Checkpoints
